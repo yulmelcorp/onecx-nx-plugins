@@ -1,5 +1,9 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { ChangeDetectionStrategy, Component, effect, inject } from '@angular/core'
 import { RouterOutlet } from '@angular/router'
+import { toSignal } from '@angular/core/rxjs-interop'
+import { TranslateService } from '@ngx-translate/core'
+import { Optimus } from '@openng/optimus-ui/config'
+import { merge, startWith, switchMap } from 'rxjs'
 
 @Component({
   selector: 'app-root',
@@ -7,4 +11,28 @@ import { RouterOutlet } from '@angular/router'
   imports: [RouterOutlet],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class AppEntrypointComponent {}
+export class AppEntrypointComponent {
+  private readonly translateService = inject(TranslateService)
+  private readonly config = inject(Optimus)
+
+  private readonly translation = toSignal(
+    merge(
+      this.translateService.onLangChange,
+      this.translateService.onTranslationChange,
+      this.translateService.onFallbackLangChange
+    ).pipe(
+        startWith(null),
+        switchMap(() => this.translateService.get('optimus'))
+      )
+  )
+
+  constructor() {
+    effect(() => {
+      const translations = this.translation()
+      if (translations && typeof translations === 'object' && !Array.isArray(translations))
+      {
+        this.config.setTranslation(translations)
+      }
+    })
+  }
+}
